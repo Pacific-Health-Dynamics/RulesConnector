@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.swiftleap</groupId>
+    <artifactId>swiftleap-rules-connector</artifactId>
+    <packaging>jar</packaging>
+    <version>0.0.1</version>
+    <name>swiftleap-rules-connector</name>
+    <url>https://www.swiftleap.com/</url>
+    <description>Clinical Rules Engine connector.</description>
+    <inceptionYear>2018</inceptionYear>
+
+    <developers>
+        <developer>
+            <name>Ruan Strydom</name>
+            <id>rm3dom</id>
+            <email>ruans@swiftleap.com</email>
+            <organization>SwiftLeap.com</organization>
+            <roles>
+                <role>Developer</role>
+            </roles>
+            <timezone>+2</timezone>
+        </developer>
+    </developers>
+
+    <organization>
+        <name>SwiftLeap.com</name>
+        <url>https://www.swiftleap.com</url>
+    </organization>
+
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.12</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.9.7</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-compiler-plugin</artifactId>
+                    <version>3.3</version>
+                    <configuration>
+                        <showWarnings>true</showWarnings>
+                        <showDeprecation>true</showDeprecation>
+                        <source>1.7</source>
+                        <target>1.7</target>
+                    </configuration>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
+
+</project>
