@@ -1,6 +1,7 @@
 package com.swiftleap.rules.connector;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -62,17 +63,20 @@ public class QueryBuilderTest {
     }
 
     @Test
-    public void executeTest() throws IOException {
+    public void executeTest() throws IOException, QueryException {
+        ObjectMapper mapper = new ObjectMapper();
+
         QueryResults results =
                 QueryBuilder.create("https://www.swiftleap.com/rules/api/v1/rules/query",
                 0,
                 "example",
                 "example")
                 .withSelect("ClaimLine", "id", "ClaimLineId")
+                .withSelect("ClaimLineHistory", "id", "ClaimLineHistoryId")
                 .withDataSet("ClaimLine",
                         new ClaimLine(1, "0UT94ZZ", "female"),
                         new ClaimLine(2, "0UT94ZZ", "male"))
                 .execute();
-        System.out.println(results);
+        System.out.println(mapper.writeValueAsString(results));
     }
 }

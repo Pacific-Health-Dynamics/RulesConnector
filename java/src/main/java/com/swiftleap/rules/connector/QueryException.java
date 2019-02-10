@@ -1,6 +1,6 @@
 package com.swiftleap.rules.connector;
 
-public class QueryException extends RuntimeException {
+public class QueryException extends Exception {
     public QueryException() {
     }
 

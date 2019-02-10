@@ -50,11 +50,11 @@ public class QueryBuilder {
         return this;
     }
 
-    public <T> QueryBuilder withDataSet(String dataSetName, T... rows) {
+    public <T> QueryBuilder withDataSet(String dataSetName, T... rows) throws QueryException {
         return withDataSet(dataSetName, Arrays.asList(rows));
     }
 
-    public <T> QueryBuilder withDataSet(String dataSetName, Iterable<T> rows) {
+    public <T> QueryBuilder withDataSet(String dataSetName, Iterable<T> rows) throws QueryException {
         List<QueryRow> queryRows = new ArrayList<>();
 
         Iterator<T> iter = rows.iterator();
@@ -74,7 +74,13 @@ public class QueryBuilder {
         return this;
     }
 
-    public QueryResults execute() throws IOException {
+    public QueryResults execute() throws IOException, QueryException {
+        if(query.getSelect().isEmpty())
+            throw new QueryException("No selection");
+        if(query.getDataSets().isEmpty())
+            throw new QueryException("No data-sets");
+
+
         byte[] data = mapper.writeValueAsBytes(query);
 
         URL url = new URL(endpoint);
@@ -99,6 +105,8 @@ public class QueryBuilder {
         String responseMessage = connection.getResponseMessage();
 
         if (responseCode < 200 || responseCode > 299) {
+            if(responseMessage == null)
+                responseMessage = "";
             throw new QueryException(String.format("Error: %d %s", responseCode, responseMessage));
         }
 
@@ -113,7 +121,7 @@ public class QueryBuilder {
         }
     }
 
-    private Map<String, String> describe(Object object) {
+    private Map<String, String> describe(Object object) throws QueryException {
         try {
             Map<String, String> map = new HashMap<>();
             for (Method method : object.getClass().getMethods()) {
