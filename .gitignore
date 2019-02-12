@@ -34,4 +34,4 @@ node_modules/
 bower_components/
 elm-stuff/
 /data/
-.DS_Store/
+.DS_Store
