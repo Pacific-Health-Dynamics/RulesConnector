@@ -2,12 +2,12 @@ using System;
 
 namespace SwiftLeap.RulesConnector
 {
-    public interface FieldFormatter
+    public interface IFieldFormatter
     {
         string Format(object value);
     }
 
-    public class DefaultFieldFormatter : FieldFormatter
+    public class DefaultFieldFormatter : IFieldFormatter
     {
         public string Format(object value)
         {
