@@ -7,19 +7,19 @@ namespace SwiftLeap.RulesConnector
         public QueryException()
         {
         }
-        
+
         public QueryException(IError error) : base(error.Message)
         {
             Code = error.Code;
             Reference = error.Reference;
         }
-        
+
         public QueryException(int code, string message) : base(message)
         {
             Code = code;
             Reference = "";
         }
-        
+
 
         public QueryException(string message) : base(message)
         {
@@ -34,7 +34,7 @@ namespace SwiftLeap.RulesConnector
         }
 
         public int Code { get; set; }
-        
+
         public string Reference { get; set; }
     }
 }

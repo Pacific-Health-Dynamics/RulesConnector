@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 
-public class QueryRow {
+class QueryRow {
     private Map<String, String> values = new HashMap<>(0);
 
     public Map<String, String> getValues() {

@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class QueryDataSet {
+class QueryDataSet {
     private String name;
     private List<QueryRow> rows = new ArrayList<>(0);
 

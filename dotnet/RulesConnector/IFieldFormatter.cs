@@ -18,7 +18,7 @@ namespace SwiftLeap.RulesConnector
                 case DateTime date:
                     return date.ToString("dd/MM/yyyy");
                 default:
-                    return value.ToString();
+                    return value.ToString().Trim();
             }
         }
     }

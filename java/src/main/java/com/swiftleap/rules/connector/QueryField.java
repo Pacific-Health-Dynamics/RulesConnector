@@ -13,4 +13,8 @@ public @interface QueryField {
     boolean ignore() default false;
 
     Class<? extends FieldFormatter> formatter() default FieldFormatter.DefaultFieldFormatter.class;
+
+    String description() default "";
+
+    Type type() default Type.NULL;
 }

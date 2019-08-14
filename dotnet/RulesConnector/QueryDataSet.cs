@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 namespace SwiftLeap.RulesConnector
 {
-    public class QueryDataSet
+    internal class QueryDataSet
     {
         public string Name { get; set; }
 

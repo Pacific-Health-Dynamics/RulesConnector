@@ -1,6 +1,6 @@
 namespace SwiftLeap.RulesConnector
 {
-    public class QuerySelect
+    internal class QuerySelect
     {
         public string DataSetName { get; set; }
 

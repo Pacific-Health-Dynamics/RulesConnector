@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using SwiftLeap.RulesConnector;
 using Xunit;
@@ -18,41 +17,62 @@ namespace RulesConnectorTests
 
     public class ClaimLine
     {
-        [QueryField(Formatter = typeof(CustomFieldFormatter))]
-        public int Id { get; set; }
-
-        public string MainProcedureIcd10 { get; set; }
-        
-        public string Gender { get; set; }
-
-        [QueryField(Ignore = true)]
-        public string Ignored { get; set; }
-
         public ClaimLine(int id, string mainProcedureIcd10, string gender)
         {
             Id = id;
             MainProcedureIcd10 = mainProcedureIcd10;
             Gender = gender;
         }
+
+        [QueryField(Formatter = typeof(CustomFieldFormatter), Description = "A unique id")]
+        public int Id { get; set; }
+
+        public string MainProcedureIcd10 { get; set; }
+
+        public string Gender { get; set; }
+
+        [QueryField(Ignore = true)] public string Ignored { get; set; }
     }
 
     public class RulesConnectorTest
     {
+        
+        private const string Url = "https://www.swiftleap.com/rules";
+        private const string User = "example";
+        private const string Password = "example";
+        private const int Tenant = 0;
+        
+
         [Fact]
         public void TestPing()
         {
-            QueryBuilder.Create("https://www.swiftleap.com/rules", 0, "example", "example")
+            QueryBuilder.Create(Url,
+                    Tenant,
+                    User,
+                    Password)
                 .Ping();
+        }
+        
+        [Fact]
+        public void TestSyncSchema()
+        {
+            QueryBuilder.Create(Url,
+                    Tenant,
+                    User,
+                    Password)
+                .WithDataSet<ClaimLine>("ClaimLine")
+                .WithDataSet<ClaimLine>("ClaimLineHistory")
+                .SyncSchema("default");
         }
 
         [Fact]
         public void TestQuery()
         {
             var results =
-                QueryBuilder.Create("https://www.swiftleap.com/rules",
-                        0,
-                        "example",
-                        "example")
+                QueryBuilder.Create(Url,
+                        Tenant,
+                        User,
+                        Password)
                     .WithSelect("ClaimLine", "id", "ClaimLineId")
                     .WithSelect("ClaimLineHistory", "id", "ClaimLineHistoryId")
                     .WithDataSet("ClaimLine",

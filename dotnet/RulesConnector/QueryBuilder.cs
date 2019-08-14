@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -7,18 +8,20 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Serialization;
 
 namespace SwiftLeap.RulesConnector
 {
     public class QueryBuilder
     {
+        private static readonly JsonSerializerSettings SerializationConfig = new DefaultJsonSerializerSettings();
         private readonly Query _query = new Query();
         private string _baseUrl;
         private string _password;
         private int _tenantId;
         private string _user;
-        private static readonly JsonSerializerSettings SerializationConfig = new DefaultJsonSerializerSettings();
+        private IDictionary<string, Type> _dataSets = new Dictionary<string, Type>();
 
         private QueryBuilder()
         {
@@ -45,23 +48,37 @@ namespace SwiftLeap.RulesConnector
             return WithDataSet(dataSetName, (IEnumerable<T>) rows);
         }
 
+        public QueryBuilder WithDataSet<T>(string dataSetName)
+        {
+            if(!_dataSets.ContainsKey(dataSetName))
+                _dataSets[dataSetName] = typeof(T);
+            return this;
+        }
+
         public QueryBuilder WithDataSet<T>(string dataSetName, IEnumerable<T> rows)
         {
+            IList<SchemaColumnDef> fields = null;
             var queryRows = new List<QueryRow>();
 
             foreach (var next in rows)
             {
                 if (next == null)
                     continue;
-                var row = new QueryRow {Values = Describe(next)};
+                if (fields == null)
+                {
+                    fields = DescribeFields(typeof(T)).ToList();
+                    if(!_dataSets.ContainsKey(dataSetName))
+                        _dataSets[dataSetName] = typeof(T);
+                }
+
+                var row = new QueryRow {Values = Describe(fields, next)};
                 queryRows.Add(row);
             }
 
             _query.DataSets.Add(new QueryDataSet {Name = dataSetName, Rows = queryRows});
             return this;
         }
-        
-        
+
 
         public void Ping()
         {
@@ -73,7 +90,30 @@ namespace SwiftLeap.RulesConnector
             {
                 throw UnwrapException(ex);
             }
+        }
 
+        public void SyncSchema(string name)
+        {
+            if (_dataSets.Count < 1)
+                throw new QueryException("No data-sets");
+            
+            try
+            {
+                var schema = new Schema();
+                schema.Name = name;
+
+                foreach (var entry in _dataSets)
+                {
+                    var fields = DescribeFields(entry.Value).ToList();
+                    schema.DataSets.Add(new SchemaDataSet(entry.Key, fields));
+                }
+                
+                Do(client => client.PostAsync("api/v1/rules/schema/sync", ToContent(schema)));
+            }
+            catch (Exception ex)
+            {
+                throw UnwrapException(ex);
+            }
         }
 
         public QueryResults Execute()
@@ -99,45 +139,28 @@ namespace SwiftLeap.RulesConnector
             return exception;
         }
 
-        private static IDictionary<string, string> Describe(object obj)
+        private static IEnumerable<SchemaColumnDef> DescribeFields(Type type)
         {
-            var defaultFieldFormatter = new DefaultFieldFormatter();
-            IDictionary<string, string> map = new Dictionary<string, string>();
-            foreach (var prop in obj.GetType().GetProperties())
+            foreach (var prop in type.GetProperties())
             {
                 var field = prop.GetCustomAttribute<QueryFieldAttribute>();
                 if (field != null && field.Ignore)
                     continue;
-
-                IFieldFormatter formatter;
-                var propName = "";
-
-                if (field != null)
-                {
-                    formatter = (IFieldFormatter) Activator.CreateInstance(field.Formatter);
-                    propName = field.Alias;
-                }
-                else
-                {
-                    formatter = defaultFieldFormatter;
-                }
-
-                if (string.IsNullOrWhiteSpace(propName))
-                    propName = ToPropName(prop.Name);
-
-                if (!map.ContainsKey(propName))
-                    map.Add(propName, formatter.Format(prop.GetMethod.Invoke(obj, null)));
+                yield return new SchemaColumnDef(prop);
             }
+        }
 
+        private static IDictionary<string, string> Describe(IEnumerable<SchemaColumnDef> fields, object obj)
+        {
+            IDictionary<string, string> map = new Dictionary<string, string>();
+            foreach (var def in fields)
+            {
+                if (!map.ContainsKey(def.Name))
+                    map.Add(def.Name, def.Format(def.Invoke(obj)));
+            }
             return map;
         }
 
-        private static string ToPropName(string name)
-        {
-            return char.ToLower(name[0]) + name.Substring(1);
-        }
-        
-        
         private void Do(Func<HttpClient, Task<HttpResponseMessage>> func)
         {
             using (var clientHandler = GetClientHandler())
@@ -159,7 +182,7 @@ namespace SwiftLeap.RulesConnector
             {
                 var result = await func(client);
                 if (result.StatusCode == HttpStatusCode.NoContent)
-                    return default(TResult);
+                    return default;
                 if (result.IsSuccessStatusCode)
                 {
                     var body = await result.Content.ReadAsStringAsync();
@@ -170,7 +193,7 @@ namespace SwiftLeap.RulesConnector
                 throw await ProcessError(result);
             }
         }
-        
+
         private async Task<Exception> ProcessError(HttpResponseMessage result)
         {
             var errorBody = await result.Content.ReadAsStringAsync();
@@ -179,7 +202,7 @@ namespace SwiftLeap.RulesConnector
             var error = JsonConvert.DeserializeObject<Error>(errorBody, SerializationConfig);
             return new QueryException(error);
         }
-        
+
         private HttpClientHandler GetClientHandler()
         {
             var clientHandler = new HttpClientHandler();
@@ -191,30 +214,31 @@ namespace SwiftLeap.RulesConnector
         {
             var userCredentials = Encoding.UTF8.GetBytes(_user + ":" + _password);
             var basicAuth = Convert.ToBase64String(userCredentials);
-            
+
             var client = new HttpClient(handler);
             client.BaseAddress = new Uri(_baseUrl);
             client.DefaultRequestHeaders.Accept.Clear();
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            client.DefaultRequestHeaders.Authorization = 
+            client.DefaultRequestHeaders.Authorization =
                 new AuthenticationHeaderValue("Basic", basicAuth);
             client.DefaultRequestHeaders.Add("X-TenantId", _tenantId.ToString());
             return client;
         }
-        
+
+        private HttpContent ToContent<TType>(TType content)
+        {
+            var body = JsonConvert.SerializeObject(content, SerializationConfig);
+            return new StringContent(body, Encoding.UTF8, "application/json");
+        }
+
         public class DefaultJsonSerializerSettings : JsonSerializerSettings
         {
             public DefaultJsonSerializerSettings()
             {
                 ContractResolver = new CamelCasePropertyNamesContractResolver();
                 MissingMemberHandling = MissingMemberHandling.Ignore;
+                Converters.Add(new StringEnumConverter());
             }
-        }
-        
-        private HttpContent ToContent<TType>(TType content)
-        {
-            var body = JsonConvert.SerializeObject(content, SerializationConfig);
-            return new StringContent(body, Encoding.UTF8, "application/json");
         }
     }
 }

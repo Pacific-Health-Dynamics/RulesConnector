@@ -15,12 +15,14 @@ package com.swiftleap.rules.connector;
  * <p>
  * <p>
  */
-public class Base64 {
+class Base64 {
 
     // The line separator string of the operating system.
     private static final String systemLineSeparator = System.getProperty("line.separator");
     // Mapping table from 6-bit nibbles to Base64 characters.
     private static char[] map1 = new char[64];
+    // Mapping table from Base64 characters to 6-bit nibbles.
+    private static byte[] map2 = new byte[128];
 
     static {
         int i = 0;
@@ -37,9 +39,6 @@ public class Base64 {
         map1[i++] = '/';
     }
 
-    // Mapping table from Base64 characters to 6-bit nibbles.
-    private static byte[] map2 = new byte[128];
-
     static {
         for (int i = 0; i < map2.length; i++) {
             map2[i] = -1;
@@ -47,6 +46,10 @@ public class Base64 {
         for (int i = 0; i < 64; i++) {
             map2[map1[i]] = (byte) i;
         }
+    }
+
+    // Dummy constructor.
+    private Base64() {
     }
 
     /**
@@ -262,10 +265,6 @@ public class Base64 {
             }
         }
         return out;
-    }
-
-    // Dummy constructor.
-    private Base64() {
     }
 } // end class Base64Coder
 

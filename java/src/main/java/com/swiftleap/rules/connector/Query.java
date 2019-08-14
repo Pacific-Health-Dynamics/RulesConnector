@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-public class Query {
+class Query {
     private List<QuerySelect> select = new ArrayList<>(0);
     private List<QueryDataSet> dataSets = new ArrayList<>(0);
 

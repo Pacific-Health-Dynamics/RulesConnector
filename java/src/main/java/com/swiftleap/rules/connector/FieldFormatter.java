@@ -15,7 +15,7 @@ public interface FieldFormatter {
                 return null;
             if (value instanceof Date)
                 return df.format((Date) value);
-            return value.toString();
+            return value.toString().trim();
         }
     }
 }

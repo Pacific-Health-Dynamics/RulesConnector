@@ -3,18 +3,17 @@ package com.swiftleap.rules.connector;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationConfig;
 import com.fasterxml.jackson.databind.SerializationFeature;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.*;
+import java.util.function.Function;
 
 public class QueryBuilder {
     private ObjectMapper mapper = new ObjectMapper();
@@ -23,22 +22,86 @@ public class QueryBuilder {
     private CharSequence user;
     private CharSequence password;
     private Query query = new Query();
+    private Map<String, Class<?>> dataSets = new HashMap<>();
 
     private QueryBuilder() {
-        SerializationConfig sc = mapper.getSerializationConfig();
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
         mapper.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
     }
 
-
-    public static QueryBuilder create(String endpoint, int tenantId, CharSequence user, CharSequence password) {
+    public static QueryBuilder create(String baseUrl, int tenantId, CharSequence user, CharSequence password) {
         QueryBuilder ret = new QueryBuilder();
-        ret.endpoint = endpoint;
+        ret.endpoint = baseUrl;
         ret.password = password;
         ret.user = user;
         ret.tenantId = tenantId;
         return ret;
+    }
+
+    private HttpURLConnection getConnection(String method, String path) throws IOException {
+        URL url = new URL(endpoint + "/" + path);
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        String userCredentials = user + ":" + password;
+        String basicAuth = "Basic " + new String(Base64.encode(userCredentials.getBytes()));
+
+        connection.setRequestProperty("Authorization", basicAuth);
+        connection.setRequestMethod(method);
+        connection.setRequestProperty("X-TenantId", String.valueOf(tenantId));
+        connection.setUseCaches(false);
+        return connection;
+    }
+
+    private byte[] readResponse(HttpURLConnection connection) throws IOException {
+        try (InputStream in = connection.getInputStream()) {
+            ByteArrayOutputStream bout = new ByteArrayOutputStream();
+            byte[] buff = new byte[2048];
+            int read = 0;
+            while ((read = in.read(buff)) > 0) {
+                bout.write(buff, 0, read);
+            }
+            return bout.toByteArray();
+        }
+    }
+
+    private <T> T httpGet(String path, Function<HttpURLConnection, T> con) {
+        HttpURLConnection connection = null;
+        try {
+            connection = getConnection("GET", path);
+            processResponseStatus(connection);
+            return con.apply(connection);
+        } catch (IOException ex) {
+            throw new QueryException(ex);
+        } finally {
+            if (connection != null)
+                connection.disconnect();
+        }
+    }
+
+    private <T> T httpPost(String path, Object object, Function<HttpURLConnection, T> con) {
+        HttpURLConnection connection = null;
+        try {
+            byte[] data = mapper.writeValueAsBytes(object);
+
+            connection = getConnection("POST", path);
+
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("Content-Length", "" + data.length);
+            connection.setDoInput(true);
+            connection.setDoOutput(true);
+
+            try (OutputStream out = connection.getOutputStream()) {
+                out.write(data);
+            }
+
+            processResponseStatus(connection);
+            return con.apply(connection);
+        } catch (IOException ex) {
+            throw new QueryException(ex);
+        } finally {
+            if (connection != null)
+                connection.disconnect();
+        }
     }
 
     public QueryBuilder withSelect(String dataSetName, String columnName, String alias) {
@@ -50,11 +113,17 @@ public class QueryBuilder {
         return this;
     }
 
-    public <T> QueryBuilder withDataSet(String dataSetName, T... rows) throws QueryException {
+    public <T> QueryBuilder withDataSet(String dataSetName, Class<T> type) {
+        dataSets.put(dataSetName, type);
+        return this;
+    }
+
+    public <T> QueryBuilder withDataSet(String dataSetName, T... rows) {
         return withDataSet(dataSetName, Arrays.asList(rows));
     }
 
-    public <T> QueryBuilder withDataSet(String dataSetName, Iterable<T> rows) throws QueryException {
+    public <T> QueryBuilder withDataSet(String dataSetName, Iterable<T> rows) {
+        Collection<SchemaColumnDef> fields = null;
         List<QueryRow> queryRows = new ArrayList<>();
 
         Iterator<T> iter = rows.iterator();
@@ -62,8 +131,13 @@ public class QueryBuilder {
             T next = iter.next();
             if (next == null)
                 continue;
+            if (fields == null) {
+                dataSets.put(dataSetName, next.getClass());
+                fields = describeFields(next.getClass());
+            }
+
             QueryRow row = new QueryRow();
-            row.setValues(describe(next));
+            row.setValues(describe(fields, next));
             queryRows.add(row);
         }
 
@@ -74,93 +148,88 @@ public class QueryBuilder {
         return this;
     }
 
-    public QueryResults execute() throws IOException, QueryException {
-        if(query.getSelect().isEmpty())
-            throw new QueryException("No selection");
-        if(query.getDataSets().isEmpty())
-            throw new QueryException("No data-sets");
-
-
-        byte[] data = mapper.writeValueAsBytes(query);
-
-        URL url = new URL(endpoint);
-        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-        String userCredentials = user + ":" + password;
-        String basicAuth = "Basic " + new String(Base64.encode(userCredentials.getBytes()));
-
-        connection.setRequestProperty("Authorization", basicAuth);
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("X-TenantId", String.valueOf(tenantId));
-        connection.setRequestProperty("Content-Type", "application/json");
-        connection.setRequestProperty("Content-Length", "" + data.length);
-        connection.setUseCaches(false);
-        connection.setDoInput(true);
-        connection.setDoOutput(true);
-
-        try (OutputStream out = connection.getOutputStream()) {
-            out.write(data);
-        }
-
+    private void processResponseStatus(HttpURLConnection connection) throws IOException {
         int responseCode = connection.getResponseCode();
         String responseMessage = connection.getResponseMessage();
 
         if (responseCode < 200 || responseCode > 299) {
-            if(responseMessage == null)
+            if (responseMessage == null)
                 responseMessage = "";
+            try {
+                Error error = mapper.readValue(readResponse(connection), Error.class);
+                throw new QueryException(String.format("Error: %d %s (%s)", error.getCode(), error.getMessage(), error.getReference()));
+            } catch (Exception e) {
+            }
+
             throw new QueryException(String.format("Error: %d %s", responseCode, responseMessage));
         }
-
-        try (InputStream in = connection.getInputStream()) {
-            ByteArrayOutputStream bout = new ByteArrayOutputStream();
-            byte[] buff = new byte[2048];
-            int read = 0;
-            while ((read = in.read(buff)) > 0) {
-                bout.write(buff, 0, read);
-            }
-            return mapper.readValue(bout.toByteArray(), QueryResults.class);
-        }
     }
 
-    private Map<String, String> describe(Object object) throws QueryException {
-        try {
-            Map<String, String> map = new HashMap<>();
-            for (Method method : object.getClass().getMethods()) {
-                if (method.getName().startsWith("get")) {
-                    if (method.getName().equals("getClass"))
-                        continue;
-
-                    QueryField field = method.getAnnotation(QueryField.class);
-                    if (field != null && field.ignore())
-                        continue;
-
-                    FieldFormatter formatter;
-                    String propName = "";
-
-                    if (field != null) {
-                        formatter = field.formatter().newInstance();
-                        propName = field.value();
-                    } else {
-                        formatter = new FieldFormatter.DefaultFieldFormatter();
-                    }
-
-                    if (propName.isEmpty())
-                        propName = toPropName(method.getName());
-
-                    map.put(propName, formatter.format(method.invoke(object)));
-                }
-            }
-            return map;
-        } catch (IllegalAccessException
-                | IllegalArgumentException
-                | InvocationTargetException
-                | InstantiationException e) {
-            throw new QueryException(e);
-        }
+    public void ping() {
+        httpGet("api/v1/system/ping", con -> true);
     }
 
-    private String toPropName(String name) {
-        if (!name.startsWith("get"))
-            return name;
-        return Character.toLowerCase(name.charAt(3)) + name.substring(4);
+    public void syncSchema(String name) {
+        if (dataSets.isEmpty())
+            throw new QueryException("No data-sets");
+
+        Schema schema = new Schema();
+        schema.setName(name);
+
+        for (Map.Entry<String, Class<?>> e : dataSets.entrySet()) {
+            Collection<SchemaColumnDef> fields = describeFields(e.getValue());
+            schema.getDataSets().add(new SchemaDataSet(e.getKey(), fields));
+        }
+
+        httpPost("api/v1/rules/schema/sync", schema, connection -> {
+            try {
+                readResponse(connection);
+                return true;
+            } catch (IOException e) {
+                throw new QueryException(e);
+            }
+        });
+    }
+
+    public QueryResults execute() {
+        if (query.getSelect().isEmpty())
+            throw new QueryException("No selection");
+        if (query.getDataSets().isEmpty())
+            throw new QueryException("No data-sets");
+
+        return httpPost("api/v1/rules/query", query, connection -> {
+            try {
+                return mapper.readValue(readResponse(connection), QueryResults.class);
+            } catch (IOException e) {
+                throw new QueryException(e);
+            }
+        });
+    }
+
+    private Collection<SchemaColumnDef> describeFields(Class<?> clazz) {
+        Collection<SchemaColumnDef> fields = new ArrayList<>();
+        for (Method method : clazz.getMethods()) {
+            if (method.getName().startsWith("get")) {
+                if (method.getName().equals("getClass"))
+                    continue;
+
+                QueryField queryField = method.getAnnotation(QueryField.class);
+                if (queryField != null && queryField.ignore())
+                    continue;
+
+                SchemaColumnDef field = new SchemaColumnDef(method);
+                fields.add(field);
+            }
+        }
+        return fields;
+    }
+
+    private Map<String, String> describe(Collection<SchemaColumnDef> fields, Object object) {
+
+        Map<String, String> map = new HashMap<>();
+        for (SchemaColumnDef field : fields) {
+            map.put(field.getName(), field.invoke(object));
+        }
+        return map;
     }
 }

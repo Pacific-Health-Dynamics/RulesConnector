@@ -17,7 +17,7 @@ package com.swiftleap.rules.connector;
  * <p>
  * Created by ruans on 2015/08/18.
  */
-public class Error {
+class Error {
     private String message;
     private int code;
     private String reference;

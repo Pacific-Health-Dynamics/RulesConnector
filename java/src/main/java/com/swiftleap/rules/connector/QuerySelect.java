@@ -1,7 +1,7 @@
 package com.swiftleap.rules.connector;
 
 
-public class QuerySelect {
+class QuerySelect {
     private String dataSetName;
     private String columnName;
     private String alias;
