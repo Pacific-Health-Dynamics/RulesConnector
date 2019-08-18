@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 namespace SwiftLeap.RulesConnector
 {
@@ -15,6 +16,12 @@ namespace SwiftLeap.RulesConnector
             {
                 case null:
                     return null;
+                case decimal num:
+                    return num.ToString(CultureInfo.InvariantCulture);
+                case float num:
+                    return num.ToString(CultureInfo.InvariantCulture);
+                case double num:
+                    return num.ToString(CultureInfo.InvariantCulture);
                 case DateTime date:
                     return date.ToString("dd/MM/yyyy");
                 default:

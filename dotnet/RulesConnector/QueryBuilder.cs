@@ -182,7 +182,7 @@ namespace SwiftLeap.RulesConnector
             {
                 var result = await func(client);
                 if (result.StatusCode == HttpStatusCode.NoContent)
-                    return default;
+                    return default(TResult);
                 if (result.IsSuccessStatusCode)
                 {
                     var body = await result.Content.ReadAsStringAsync();
