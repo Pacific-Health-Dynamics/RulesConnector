@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Reflection;
 
 namespace SwiftLeap.RulesConnector
@@ -72,6 +73,9 @@ namespace SwiftLeap.RulesConnector
 
         private static FieldType TypeFromType(Type t)
         {
+            if (t.IsGenericType && t.GetGenericTypeDefinition() == typeof(Nullable<>))
+                t = t.GenericTypeArguments.First();
+            
             if (IsNumericType(t))
                 return FieldType.NUMBER;
             if (typeof(DateTime).IsAssignableFrom(t))

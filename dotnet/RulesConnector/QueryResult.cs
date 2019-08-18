@@ -10,6 +10,8 @@ namespace SwiftLeap.RulesConnector
 
         public string RuleId { get; set; }
 
+        public int Version { get; set; }
+
         public string Name { get; set; }
 
         public string Message { get; set; }
