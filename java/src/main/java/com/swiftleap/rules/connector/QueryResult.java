@@ -12,6 +12,7 @@ public class QueryResult {
     private String name;
     private String message;
     private int severity;
+    private int version;
     private String mappedCode;
 
     public QueryResult() {
@@ -71,5 +72,13 @@ public class QueryResult {
 
     public void setMappedCode(String mappedCode) {
         this.mappedCode = mappedCode;
+    }
+
+    public int getVersion() {
+        return version;
+    }
+
+    public void setVersion(int version) {
+        this.version = version;
     }
 }
