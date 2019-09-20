@@ -7,7 +7,7 @@ public interface FieldFormatter {
     String format(Object value);
 
     class DefaultFieldFormatter implements FieldFormatter {
-        SimpleDateFormat df = new SimpleDateFormat("dd/MM/yyyy");
+        SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd");
 
         @Override
         public String format(Object value) {
