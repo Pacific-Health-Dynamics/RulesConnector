@@ -2,21 +2,21 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.swiftleap</groupId>
-    <artifactId>swiftleap-rules-connector</artifactId>
+    <groupId>au.com.pacifichealthdynamics</groupId>
+    <artifactId>cat-connector</artifactId>
     <packaging>jar</packaging>
     <version>0.0.1</version>
-    <name>swiftleap-rules-connector</name>
-    <url>https://www.swiftleap.com/</url>
-    <description>Clinical Rules Engine connector.</description>
+    <name>cat-connector</name>
+    <url>https://www.pacifichealthdynamics.com.au</url>
+    <description>CAT connector</description>
     <inceptionYear>2018</inceptionYear>
 
     <developers>
         <developer>
             <name>Ruan Strydom</name>
             <id>rm3dom</id>
-            <email>ruans@swiftleap.com</email>
-            <organization>SwiftLeap.com</organization>
+            <email>ruans@pacifichealthdynamics.com.au</email>
+            <organization>Pacific Health Dynamics</organization>
             <roles>
                 <role>Developer</role>
             </roles>
@@ -25,8 +25,8 @@
     </developers>
 
     <organization>
-        <name>SwiftLeap.com</name>
-        <url>https://www.swiftleap.com</url>
+        <name>pacifichealthdynamics.com.au</name>
+        <url>https://www.pacifichealthdynamics.com.au</url>
     </organization>
 
     <dependencies>

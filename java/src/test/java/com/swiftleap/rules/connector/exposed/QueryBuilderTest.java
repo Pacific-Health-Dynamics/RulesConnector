@@ -9,10 +9,10 @@ import java.io.IOException;
 
 public class QueryBuilderTest {
 
-    private String endpoint = "https://www.swiftleap.com/rules";
+    private String endpoint = "https://www.pacifichealthdynamics.com.au/cat";
     private String user = "example";
     private String password = "example";
-    private int tenant = 0;
+    private int tenant = 1;
 
     @Test
     public void pingTest() {

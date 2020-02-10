@@ -37,10 +37,10 @@ namespace RulesConnectorTests
     public class RulesConnectorTest
     {
         
-        private const string Url = "https://www.swiftleap.com/rules";
+        private const string Url = "https://www.pacifichealthdynamics.com.au/cat";
         private const string User = "example";
         private const string Password = "example";
-        private const int Tenant = 0;
+        private const int Tenant = 1;
         
 
         [Fact]
