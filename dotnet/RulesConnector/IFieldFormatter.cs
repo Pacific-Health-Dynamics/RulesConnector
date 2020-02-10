@@ -23,7 +23,7 @@ namespace SwiftLeap.RulesConnector
                 case double num:
                     return num.ToString(CultureInfo.InvariantCulture);
                 case DateTime date:
-                    return date.ToString("dd/MM/yyyy");
+                    return date.ToString("yyyy-MM-dd");
                 default:
                     return value.ToString().Trim();
             }
