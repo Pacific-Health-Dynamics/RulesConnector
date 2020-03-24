@@ -75,7 +75,7 @@ namespace RulesConnectorTests
                         Password)
                     .WithSelect("ClaimLine", "id", "ClaimLineId")
                     .WithSelect("ClaimLineHistory", "id", "ClaimLineHistoryId")
-                    .WithDataSet("ClaimLine",
+                    .WithDataSetRows("ClaimLine",
                         new ClaimLine(1, "0UT94ZZ", "female"),
                         new ClaimLine(2, "0UT94ZZ", "male"))
                     .Execute();

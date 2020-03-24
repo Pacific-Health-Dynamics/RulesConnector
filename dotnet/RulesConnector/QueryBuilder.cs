@@ -43,9 +43,10 @@ namespace SwiftLeap.RulesConnector
             return this;
         }
 
-        public QueryBuilder WithDataSet<T>(string dataSetName, params T[] rows)
+        //Convenient method
+        public QueryBuilder WithDataSetRows<T>(string dataSetName, params T[] rows)
         {
-            return WithDataSet(dataSetName, (IEnumerable<T>) rows);
+            return WithDataSet(dataSetName, rows);
         }
 
         public QueryBuilder WithDataSet<T>(string dataSetName)
