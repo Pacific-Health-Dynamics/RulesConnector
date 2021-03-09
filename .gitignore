@@ -36,3 +36,4 @@ elm-stuff/
 /data/
 .DS_Store
 obj/
+bin/
