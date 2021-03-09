@@ -228,7 +228,8 @@ public class QueryBuilder {
 
         Map<String, String> map = new HashMap<>();
         for (SchemaColumnDef field : fields) {
-            map.put(field.getName(), field.invoke(object));
+            String value = field.invoke(object);
+            if(value != null) map.put(field.getName(), value);
         }
         return map;
     }

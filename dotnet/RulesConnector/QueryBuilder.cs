@@ -157,7 +157,11 @@ namespace SwiftLeap.RulesConnector
             foreach (var def in fields)
             {
                 if (!map.ContainsKey(def.Name))
-                    map.Add(def.Name, def.Format(def.Invoke(obj)));
+                {
+                    var value = def.Invoke(obj);
+                    if(value != null)
+                        map.Add(def.Name, def.Format(def.Invoke(obj)));
+                }
             }
             return map;
         }
