@@ -24,6 +24,17 @@
         </developer>
     </developers>
 
+    <distributionManagement>
+        <snapshotRepository>
+            <id>mavenrepo.swiftleap.com</id>
+            <url>s3://mavenrepo.swiftleap.com/snapshot</url>
+        </snapshotRepository>
+        <repository>
+            <id>mavenrepo.swiftleap.com</id>
+            <url>s3://mavenrepo.swiftleap.com/release</url>
+        </repository>
+    </distributionManagement>
+
     <organization>
         <name>pacifichealthdynamics.com.au</name>
         <url>https://www.pacifichealthdynamics.com.au</url>
@@ -44,6 +55,14 @@
     </dependencies>
 
     <build>
+        <extensions>
+            <extension>
+                <groupId>org.kuali.maven.wagons</groupId>
+                <artifactId>maven-s3-wagon</artifactId>
+                <version>1.2.1</version>
+            </extension>
+        </extensions>
+
         <pluginManagement>
             <plugins>
                 <plugin>

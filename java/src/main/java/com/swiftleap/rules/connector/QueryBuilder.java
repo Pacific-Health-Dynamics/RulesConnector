@@ -122,8 +122,10 @@ public class QueryBuilder {
         return withDataSet(dataSetName, Arrays.asList(rows));
     }
 
-    public <T> QueryBuilder withDataSet(String dataSetName, Iterable<T> rows) {
-        Collection<SchemaColumnDef> fields = null;
+    public <T> QueryBuilder withDataSet(
+            String dataSetName,
+            Iterable<T> rows,
+            Function<T, Map<String, String>> converter ) {
         List<QueryRow> queryRows = new ArrayList<>();
 
         Iterator<T> iter = rows.iterator();
@@ -131,13 +133,9 @@ public class QueryBuilder {
             T next = iter.next();
             if (next == null)
                 continue;
-            if (fields == null) {
-                dataSets.put(dataSetName, next.getClass());
-                fields = describeFields(next.getClass());
-            }
 
             QueryRow row = new QueryRow();
-            row.setValues(describe(fields, next));
+            row.setValues(converter.apply(next));
             queryRows.add(row);
         }
 
@@ -146,6 +144,17 @@ public class QueryBuilder {
         ds.setRows(queryRows);
         query.getDataSets().add(ds);
         return this;
+    }
+
+    public <T> QueryBuilder withDataSet(String dataSetName, Iterable<T> rows) {
+        final Collection<SchemaColumnDef> fields = new ArrayList<>(0);
+        return withDataSet(dataSetName, rows, row -> {
+            if (fields.isEmpty()) {
+                dataSets.put(dataSetName, row.getClass());
+                fields.addAll(describeFields(row.getClass()));
+            }
+            return describe(fields, row);
+        });
     }
 
     private void processResponseStatus(HttpURLConnection connection) throws IOException {
