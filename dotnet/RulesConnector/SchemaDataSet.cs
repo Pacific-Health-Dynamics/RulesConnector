@@ -15,7 +15,7 @@ namespace SwiftLeap.RulesConnector
             Columns = columns.ToList();
         }
 
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         public IList<SchemaColumnDef> Columns { get; } = new List<SchemaColumnDef>(0);
     }

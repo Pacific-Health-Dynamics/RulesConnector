@@ -9,10 +9,10 @@ namespace SwiftLeap.RulesConnector
 
     public class Error : IError
     {
-        public string Message { get; set; }
+        public string Message { get; set; } = string.Empty;
 
         public int Code { get; set; }
 
-        public string Reference { get; set; }
+        public string Reference { get; set; } = string.Empty;
     }
 }

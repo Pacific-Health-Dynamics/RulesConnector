@@ -35,6 +35,6 @@ namespace SwiftLeap.RulesConnector
 
         public int Code { get; set; }
 
-        public string Reference { get; set; }
+        public string Reference { get; set; } = string.Empty;
     }
 }

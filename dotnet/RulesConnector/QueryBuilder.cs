@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -17,11 +18,11 @@ namespace SwiftLeap.RulesConnector
     {
         private static readonly JsonSerializerSettings SerializationConfig = new DefaultJsonSerializerSettings();
         private readonly Query _query = new Query();
-        private string _baseUrl;
-        private string _password;
+        private string _baseUrl = string.Empty;
+        private string _password = string.Empty;
         private int _tenantId;
-        private string _user;
-        private IDictionary<string, Type> _dataSets = new Dictionary<string, Type>();
+        private string _user = string.Empty;
+        private readonly IDictionary<string, Type> _dataSets = new Dictionary<string, Type>();
 
         private QueryBuilder()
         {
@@ -30,15 +31,17 @@ namespace SwiftLeap.RulesConnector
 
         public static QueryBuilder Create(string baseUrl, int tenantId, string user, string password)
         {
-            return new QueryBuilder {_baseUrl = baseUrl, _password = password, _user = user, _tenantId = tenantId};
+            return new QueryBuilder { _baseUrl = baseUrl, _password = password, _user = user, _tenantId = tenantId };
         }
 
         public QueryBuilder WithSelect(string dataSetName, string columnName, string alias)
         {
-            var select = new QuerySelect();
-            select.DataSetName = dataSetName;
-            select.ColumnName = columnName;
-            select.Alias = alias;
+            var select = new QuerySelect
+            {
+                DataSetName = dataSetName,
+                ColumnName = columnName,
+                Alias = alias
+            };
             _query.Select.Add(select);
             return this;
         }
@@ -51,14 +54,14 @@ namespace SwiftLeap.RulesConnector
 
         public QueryBuilder WithDataSet<T>(string dataSetName)
         {
-            if(!_dataSets.ContainsKey(dataSetName))
+            if (!_dataSets.ContainsKey(dataSetName))
                 _dataSets[dataSetName] = typeof(T);
             return this;
         }
 
         public QueryBuilder WithDataSet<T>(string dataSetName, IEnumerable<T> rows)
         {
-            IList<SchemaColumnDef> fields = null;
+            IList<SchemaColumnDef>? fields = null;
             var queryRows = new List<QueryRow>();
 
             foreach (var next in rows)
@@ -68,15 +71,15 @@ namespace SwiftLeap.RulesConnector
                 if (fields == null)
                 {
                     fields = DescribeFields(typeof(T)).ToList();
-                    if(!_dataSets.ContainsKey(dataSetName))
+                    if (!_dataSets.ContainsKey(dataSetName))
                         _dataSets[dataSetName] = typeof(T);
                 }
 
-                var row = new QueryRow {Values = Describe(fields, next)};
+                var row = new QueryRow { Values = Describe(fields, next) };
                 queryRows.Add(row);
             }
 
-            _query.DataSets.Add(new QueryDataSet {Name = dataSetName, Rows = queryRows});
+            _query.DataSets.Add(new QueryDataSet { Name = dataSetName, Rows = queryRows });
             return this;
         }
 
@@ -97,7 +100,7 @@ namespace SwiftLeap.RulesConnector
         {
             if (_dataSets.Count < 1)
                 throw new QueryException("No data-sets");
-            
+
             try
             {
                 var schema = new Schema();
@@ -108,8 +111,25 @@ namespace SwiftLeap.RulesConnector
                     var fields = DescribeFields(entry.Value).ToList();
                     schema.DataSets.Add(new SchemaDataSet(entry.Key, fields));
                 }
-                
+
                 Do(client => client.PostAsync("api/v1/rules/schema/sync", ToContent(schema)));
+            }
+            catch (Exception ex)
+            {
+                throw UnwrapException(ex);
+            }
+        }
+
+        public async Task<QueryResults> ExecuteAsync(CancellationToken token = default)
+        {
+            if (_query.Select.Count < 1)
+                throw new QueryException("No selection");
+            if (_query.DataSets.Count < 1)
+                throw new QueryException("No data-sets");
+            try
+            {
+                var content = ToContent(_query);
+                return await Do<QueryResults>(client => client.PostAsync("api/v1/rules/query", content, token));
             }
             catch (Exception ex)
             {
@@ -136,7 +156,13 @@ namespace SwiftLeap.RulesConnector
         private Exception UnwrapException(Exception exception)
         {
             while (exception is AggregateException)
-                exception = exception.InnerException;
+            {
+                var e = exception.InnerException;
+                if (e == null)
+                    break;
+                exception = e;
+            }
+
             return exception;
         }
 
@@ -159,52 +185,51 @@ namespace SwiftLeap.RulesConnector
                 if (!map.ContainsKey(def.Name))
                 {
                     var value = def.Invoke(obj);
-                    if(value != null)
-                        map.Add(def.Name, def.Format(def.Invoke(obj)));
+                    if (value != null)
+                        map.Add(def.Name, def.Format(value));
                 }
             }
+
             return map;
         }
 
         private void Do(Func<HttpClient, Task<HttpResponseMessage>> func)
         {
-            using (var clientHandler = GetClientHandler())
-            using (var client = GetClient(clientHandler))
-            {
-                var result = func(client).Result;
-                if (result.StatusCode == HttpStatusCode.NoContent)
-                    return;
-                if (result.IsSuccessStatusCode)
-                    return;
-                throw ProcessError(result).Result;
-            }
+            using var clientHandler = GetClientHandler();
+            using var client = GetClient(clientHandler);
+            var result = func(client).Result;
+            if (result.StatusCode == HttpStatusCode.NoContent)
+                return;
+            if (result.IsSuccessStatusCode)
+                return;
+            throw ProcessError(result).Result;
         }
 
         private async Task<TResult> Do<TResult>(Func<HttpClient, Task<HttpResponseMessage>> func)
         {
-            using (var clientHandler = GetClientHandler())
-            using (var client = GetClient(clientHandler))
+            using var clientHandler = GetClientHandler();
+            using var client = GetClient(clientHandler);
+            var result = await func(client);
+            if (result.StatusCode == HttpStatusCode.NoContent)
+                return default!;
+            if (result.IsSuccessStatusCode)
             {
-                var result = await func(client);
-                if (result.StatusCode == HttpStatusCode.NoContent)
-                    return default(TResult);
-                if (result.IsSuccessStatusCode)
-                {
-                    var body = await result.Content.ReadAsStringAsync();
-                    if (!string.IsNullOrEmpty(body))
-                        return JsonConvert.DeserializeObject<TResult>(body);
-                }
-
-                throw await ProcessError(result);
+                var body = await result.Content.ReadAsStringAsync();
+                if (!string.IsNullOrEmpty(body))
+                    return JsonConvert.DeserializeObject<TResult>(body);
             }
+
+            throw await ProcessError(result);
         }
 
         private async Task<Exception> ProcessError(HttpResponseMessage result)
         {
             var errorBody = await result.Content.ReadAsStringAsync();
             if (string.IsNullOrEmpty(errorBody))
-                return new QueryException((int) result.StatusCode, result.ReasonPhrase);
+                return new QueryException((int)result.StatusCode, result.ReasonPhrase);
             var error = JsonConvert.DeserializeObject<Error>(errorBody, SerializationConfig);
+            if (error == null)
+                return new QueryException("System error");
             return new QueryException(error);
         }
 
@@ -236,7 +261,7 @@ namespace SwiftLeap.RulesConnector
             return new StringContent(body, Encoding.UTF8, "application/json");
         }
 
-        public class DefaultJsonSerializerSettings : JsonSerializerSettings
+        private class DefaultJsonSerializerSettings : JsonSerializerSettings
         {
             public DefaultJsonSerializerSettings()
             {

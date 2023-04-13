@@ -6,6 +6,6 @@ namespace SwiftLeap.RulesConnector
     {
         public IList<SchemaDataSet> DataSets = new List<SchemaDataSet>(0);
 
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
     }
 }

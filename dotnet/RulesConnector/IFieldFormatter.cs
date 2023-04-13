@@ -15,7 +15,7 @@ namespace SwiftLeap.RulesConnector
             switch (value)
             {
                 case null:
-                    return null;
+                    return null!;
                 case decimal num:
                     return num.ToString(CultureInfo.InvariantCulture);
                 case float num:

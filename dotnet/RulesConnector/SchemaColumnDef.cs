@@ -6,11 +6,7 @@ namespace SwiftLeap.RulesConnector
 {
     internal class SchemaColumnDef : IFieldFormatter
     {
-        public static IFieldFormatter DefaultFieldFormatter = new DefaultFieldFormatter();
-
-        public SchemaColumnDef()
-        {
-        }
+        public static readonly IFieldFormatter DefaultFieldFormatter = new DefaultFieldFormatter();
 
         public SchemaColumnDef(PropertyInfo prop)
         {
@@ -41,8 +37,8 @@ namespace SwiftLeap.RulesConnector
                 Name = ToPropName(prop.Name);
         }
 
-        public string Name { get; set; }
-        public string Description { get; }
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; } = string.Empty;
         public FieldType Type { get; } = FieldType.NULL;
         private IFieldFormatter Formatter { get; }
         private PropertyInfo Method { get; }
@@ -90,7 +86,7 @@ namespace SwiftLeap.RulesConnector
             return char.ToLower(name[0]) + name.Substring(1);
         }
 
-        public object Invoke(object o)
+        public object? Invoke(object? o)
         {
             return Method.GetMethod.Invoke(o, null);
         }
